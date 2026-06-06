@@ -1,0 +1,19 @@
+spring.application.name=notification-service
+
+# MongoDB
+spring.data.mongodb.uri=mongodb://localhost:27017/plazoleta
+
+# JWT (RSA public key for verification - replace with actual key)
+jwt.public-key=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+
+# OpenAPI
+springdoc.api-docs.path=/v3/api-docs
+springdoc.swagger-ui.path=/swagger-ui.html
+
+# Server
+server.port=8084
+
+# Twilio (configure via environment variables)
+twilio.account-sid=${TWILIO_ACCOUNT_SID:}
+twilio.auth-token=${TWILIO_AUTH_TOKEN:}
+twilio.phone-number=${TWILIO_PHONE_NUMBER:}
