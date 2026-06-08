@@ -111,3 +111,41 @@ Recibe un pedido listo y envía un SMS al cliente con un PIN de 6 dígitos para 
 1. `ms-pedidos` genera el PIN y llama a `POST /notificaciones/enviar` forwardeando el JWT del empleado.
 2. `ms-notificaciones` envía el SMS vía Twilio.
 3. Se persiste el resultado (éxito o fallo) en MongoDB.
+
+---
+
+## Relacion con otros microservicios
+
+```
++------------------+     RSA-4096 RS256 (verificacion)     +------------------+
+| ms-notificaciones|  <-------------------------------------- |   ms-usuarios    |
+|   Puerto 8084    |                                         |  (emisor JWT)  |
++------------------+                                         +------------------+
+         ^
+         | RestTemplate (enviar SMS)
+         |
++------------------+
+|   ms-pedidos     |
+|   Puerto 8083    |
++------------------+
+```
+
+| Microservicio | Relacion | Como interactua |
+|---------------|----------|-----------------|
+| **ms-usuarios** | **Valida JWT** | `ms-notificaciones` valida el JWT localmente con llave publica RSA. No emite tokens ni llama a ms-usuarios por cada request. |
+| **ms-pedidos** | **Cliente unico** | `ms-notificaciones` solo recibe llamadas de `ms-pedidos` via `POST /notificaciones/enviar`. No expone endpoints para otros consumidores. |
+
+### Flujo de envio de notificacion (H14)
+
+1. `ms-pedidos` genera un PIN de 6 digitos y cambia el estado del pedido a LISTO
+2. `ms-pedidos` -> `POST /notificaciones/enviar` en **ms-notificaciones**, forwardeando el JWT del empleado autenticado en el header `Authorization`
+3. `ms-notificaciones` valida el JWT con llave publica RSA-4096
+4. `ms-notificaciones` envia el SMS via Twilio al celular del cliente
+5. Independientemente del resultado del SMS (exito o fallo), guarda un documento en MongoDB con `idPedido`, `celular`, `mensaje`, `exito` y `fechaEnvio`
+6. Retorna `200` a `ms-pedidos` (aunque el SMS haya fallado, el log siempre se guarda)
+
+### Notas de arquitectura
+
+- **Base de datos compartida**: `ms-notificaciones` y `ms-pedidos` comparten la misma base de datos MongoDB `plazoleta`, cada uno con su coleccion (`notificaciones` y `trazabilidad` respectivamente).
+- **Seguridad**: El endpoint `POST /notificaciones/enviar` requiere rol `EMPLEADO` en el JWT. Cualquier otro rol recibe HTTP 403 sin body.
+- **Twilio**: Las credenciales se configuran via variables de entorno (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`). El archivo `application.properties` esta en `.gitignore` para evitar filtrar credenciales.
