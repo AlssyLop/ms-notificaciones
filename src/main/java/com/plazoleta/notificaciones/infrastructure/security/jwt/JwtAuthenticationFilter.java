@@ -33,9 +33,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             var authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + rol));
             var auth = new UsernamePasswordAuthenticationToken(idUsuario, null, authorities);
             SecurityContextHolder.getContext().setAuthentication(auth);
+            JwtTokenHolder.setToken(token);
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            JwtTokenHolder.clear();
+        }
     }
 
     private String obtenerToken(HttpServletRequest request) {
